@@ -1775,13 +1775,15 @@ function editSubtopic(id) {
 }
 
 /* ==========================================================
-   CRUD — MATERIAIS
+   CRUD — MATERIAIS (com Upload)
    ========================================================== */
+
 document.getElementById('add-material-btn').addEventListener('click', () => {
   document.getElementById('material-id').value = '';
   document.getElementById('material-modal-title').textContent = 'Novo Material';
   document.getElementById('material-title').value = '';
   document.getElementById('material-url').value = '';
+  document.getElementById('material-file').value = '';
   document.getElementById('material-type').value = 'pdf';
   populateSubtopicsSelect('material-subtopic', null);
   openModal('material-modal');
@@ -1789,40 +1791,59 @@ document.getElementById('add-material-btn').addEventListener('click', () => {
 });
 
 document.getElementById('save-material-btn').addEventListener('click', async () => {
-  if (!db) { toast('Firebase não inicializado. Verifique as credenciais.', 'error'); return; }
+  if (!db) { toast('Firebase não inicializado.', 'error'); return; }
 
   const id = document.getElementById('material-id').value;
   const title = document.getElementById('material-title').value.trim();
-  const url = document.getElementById('material-url').value.trim();
   const subtopicId = document.getElementById('material-subtopic').value;
   const type = document.getElementById('material-type').value;
+  const fileInput = document.getElementById('material-file');
+  const urlInput = document.getElementById('material-url').value.trim();
 
   if (!title) { toast('Título obrigatório', 'error'); return; }
-  if (!url)   { toast('URL obrigatória', 'error'); return; }
   if (!subtopicId) { toast('Selecione um subtema', 'error'); return; }
-
-  const data = {
-    subtopicId, title, url, type,
-    order: id ? (state.materials[id]?.order ?? 0) : Object.keys(state.materials).length,
-  };
 
   try {
     await ensureFirebaseAuth();
+    let finalUrl = urlInput;
+
+    // Se o usuário selecionou um arquivo
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      toast('Fazendo upload...', 'info');
+
+      const storageRef = storage.ref(`materials/${Date.now()}_${file.name}`);
+      const snapshot = await storageRef.put(file);
+      finalUrl = await snapshot.ref.getDownloadURL();
+      
+      toast('Upload concluído!', 'success');
+    } 
+    // Se não subiu arquivo, usa a URL digitada
+    else if (!finalUrl) {
+      toast('Informe um arquivo ou uma URL', 'error');
+      return;
+    }
+
+    const data = {
+      subtopicId,
+      title,
+      url: finalUrl,
+      type,
+      order: id ? (state.materials[id]?.order ?? 0) : Object.keys(state.materials).length,
+    };
+
     if (id) {
       await db.ref(`materials/${id}`).update(data);
       toast('Material atualizado!');
     } else {
       await db.ref('materials').push(data);
-      toast('Material adicionado!');
+      toast('Material adicionado com sucesso!');
     }
+
     closeModal('material-modal');
   } catch(e) {
-    const msg = e?.message || e?.code || 'Erro desconhecido';
-    if (msg.includes('PERMISSION_DENIED') || msg.includes('permission')) {
-      toast('Sem permissão de escrita. Verifique as regras do Firebase Database.', 'error');
-    } else {
-      toast('Erro ao salvar: ' + msg, 'error');
-    }
+    console.error(e);
+    toast('Erro ao salvar: ' + (e.message || e), 'error');
   }
 });
 
@@ -1860,7 +1881,6 @@ function editMaterial(id) {
   populateSubtopicsSelect('material-subtopic', m.subtopicId);
   openModal('material-modal');
 }
-
 /* ==========================================================
    EXCLUIR (com confirmação)
    ========================================================== */
