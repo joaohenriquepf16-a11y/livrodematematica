@@ -1424,7 +1424,15 @@ function renderPage(direction) {
   if (mat.type === 'image') {
     inner = `<img src="${escHtml(mat.url)}" alt="${escHtml(mat.title)}" loading="lazy" />`;
   } else if (mat.type === 'pdf') {
-    inner = `<iframe src="${escHtml(embedUrl)}" title="${escHtml(mat.title)}" allow="autoplay" allowfullscreen></iframe>`;
+    inner = `
+<iframe
+    src="${escHtml(embedUrl)}"
+    title="${escHtml(mat.title)}"
+    allowfullscreen
+    loading="lazy"
+    referrerpolicy="no-referrer"
+    sandbox="allow-scripts allow-same-origin allow-popups allow-downloads allow-forms">
+</iframe>`;
   } else {
     inner = `
       <div class="link-card">
