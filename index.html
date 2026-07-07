@@ -1203,10 +1203,13 @@ const ADMIN_PASSWORD = "admin123";
 // --- Firebase Init ---
 let db;
 let auth;
+let storage;
+
 try {
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
   auth = firebase.auth();
+  storage = firebase.storage();        // ← NOVA LINHA
 } catch(e) {
   console.error("Firebase não inicializado:", e);
 }
