@@ -1268,6 +1268,32 @@ function toEmbedUrl(url, type) {
 
   console.log("URL ORIGINAL:", url);
 
+  // Google Drive - vários formatos
+  let fileId = null;
+
+  // Padrão 1: /file/d/ID/
+  const match1 = url.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+  if (match1) fileId = match1[1];
+
+  // Padrão 2: open?id=ID
+  const match2 = url.match(/open\?id=([^&]+)/);
+  if (match2) fileId = match2[1];
+
+  // Padrão 3: /d/ID/view ou /d/ID/preview
+  const match3 = url.match(/\/d\/([^\/]+)/);
+  if (match3) fileId = match3[1];
+
+  if (fileId) {
+    const embed = `https://drive.google.com/file/d/${fileId}/preview`;
+    console.log("URL EMBED:", embed);
+    return embed;
+  }
+
+  return url; // fallback
+}
+
+  console.log("URL ORIGINAL:", url);
+
   const gdrive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
   if (gdrive) {
     const embed = `https://drive.google.com/file/d/${gdrive[1]}/preview`;
