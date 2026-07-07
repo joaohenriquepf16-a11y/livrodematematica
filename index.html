@@ -1292,25 +1292,7 @@ function toEmbedUrl(url, type) {
   return url; // fallback
 }
 
-  console.log("URL ORIGINAL:", url);
-
-  const gdrive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
-  if (gdrive) {
-    const embed = `https://drive.google.com/file/d/${gdrive[1]}/preview`;
-    console.log("URL EMBED:", embed);
-    return embed;
-  }
-
-  const gopen = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
-  if (gopen) {
-    const embed = `https://drive.google.com/file/d/${gopen[1]}/preview`;
-    console.log("URL EMBED:", embed);
-    return embed;
-  }
-
-  return url;
-}
-/* ==========================================================
+  /* ==========================================================
    FIREBASE — LISTENERS EM TEMPO REAL
    ========================================================== */
 function startListeners() {
