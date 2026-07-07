@@ -1132,8 +1132,9 @@
 <div class="modal-overlay" id="material-modal">
   <div class="modal">
     <h3 id="material-modal-title">Novo Material</h3>
-    <p class="modal-sub">Adicione um link de PDF, imagem ou recurso externo</p>
+    <p class="modal-sub">Adicione PDF ou imagem do seu computador</p>
     <input type="hidden" id="material-id" />
+    
     <div class="form-group">
       <label>Subtema</label>
       <select id="material-subtopic"></select>
@@ -1147,24 +1148,27 @@
       <select id="material-type">
         <option value="pdf">PDF</option>
         <option value="image">Imagem</option>
-        <option value="link">Link / Recurso</option>
       </select>
     </div>
+
+    <!-- Campo de Upload -->
     <div class="form-group">
-      <label>URL do arquivo</label>
-      <input type="url" id="material-url" placeholder="https://drive.google.com/..." />
+      <label>Arquivo (PDF ou Imagem)</label>
+      <input type="file" id="material-file" accept=".pdf,.jpg,.jpeg,.png" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:8px;">
+      <small style="color:#64748b; display:block; margin-top:4px;">Ou cole uma URL abaixo (Google Drive, etc)</small>
     </div>
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#64748b;margin-top:-8px;margin-bottom:16px;line-height:1.6;">
-      💡 <strong>Google Drive:</strong> abra o arquivo → Compartilhar → "Qualquer pessoa com o link" → cole a URL aqui.<br/>
-      Para PDFs do Drive, o embed funcionará automaticamente.
+
+    <div class="form-group">
+      <label>URL alternativa (opcional)</label>
+      <input type="url" id="material-url" placeholder="https://..." />
     </div>
+
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('material-modal')">Cancelar</button>
       <button class="btn btn-primary" id="save-material-btn">Salvar Material</button>
     </div>
   </div>
 </div>
-
 <!-- Modal: Confirm Delete -->
 <div class="modal-overlay" id="confirm-modal">
   <div class="modal confirm-modal">
