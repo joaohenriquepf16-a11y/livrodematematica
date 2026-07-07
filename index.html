@@ -1435,16 +1435,31 @@ function renderPage(direction) {
 
   if (mat.type === 'image') {
     inner = `<img src="${escHtml(mat.url)}" alt="${escHtml(mat.title)}" loading="lazy" />`;
-  } else if (mat.type === 'pdf') {
-    inner = `
-      <div style="position: relative; width: 100%; height: 100%;">
-        <iframe
-          src="${escHtml(embedUrl)}"
-          title="${escHtml(mat.title)}"
-          allowfullscreen
-          loading="lazy"
-          style="width:100%; height:100%; border:none;">
-        </iframe>
+ } else if (mat.type === 'pdf') {
+  const embedUrl = toEmbedUrl(mat.url, mat.type);
+  
+  inner = `
+    <div style="position: relative; width: 100%; height: 100%;">
+      <iframe
+        src="${escHtml(embedUrl)}"
+        title="${escHtml(mat.title)}"
+        allowfullscreen
+        loading="lazy"
+        style="width:100%; height:100%; border:none;">
+      </iframe>
+      
+      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);
+                  background:white; padding:20px 30px; border-radius:12px; 
+                  box-shadow:0 10px 30px rgba(0,0,0,0.2); text-align:center; z-index:30;" 
+           id="pdf-overlay">
+        <p style="margin:0 0 12px 0; font-weight:600;">Carregando PDF...</p>
+        <a href="${escHtml(mat.url)}" target="_blank" 
+           style="background:#4f46e5; color:white; padding:10px 20px; border-radius:8px; text-decoration:none;">
+          📄 Abrir PDF em Nova Aba
+        </a>
+      </div>
+    </div>`;
+}
         
         <div style="position:absolute; bottom:15px; left:50%; transform:translateX(-50%);
                     background:rgba(0,0,0,0.85); color:white; padding:8px 16px; 
