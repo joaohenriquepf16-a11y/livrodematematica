@@ -1430,21 +1430,22 @@ function renderPage(direction) {
   }
 
   const mat = pages[idx];
-  const embedUrl = toEmbedUrl(mat.url, mat.type);
   let inner;
 
   if (mat.type === 'image') {
     inner = `<img src="${escHtml(mat.url)}" alt="${escHtml(mat.title)}" loading="lazy" />`;
- } else if (mat.type === 'pdf') {
-  const embedUrl = toEmbedUrl(mat.url, mat.type);
-  inner = `
-    <div style="width:100%; height:100%; position:relative;">
-      <iframe src="${escHtml(embedUrl)}" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
-      <div style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:#1f2937; color:white; padding:10px 16px; border-radius:8px; z-index:10;">
-        <a href="${escHtml(mat.url)}" target="_blank" style="color:white;">📄 Abrir em Nova Aba</a>
-      </div>
-    </div>`;
-}        
+  } else if (mat.type === 'pdf') {
+    const embedUrl = toEmbedUrl(mat.url, mat.type);
+    inner = `
+      <div style="width:100%; height:100%; position:relative;">
+        <iframe src="${escHtml(embedUrl)}" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>
+        
+        <!-- Botão principal -->
+        <div style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:#1f2937; color:white; padding:10px 16px; border-radius:8px; z-index:10;">
+          <a href="${escHtml(mat.url)}" target="_blank" style="color:white;">📄 Abrir em Nova Aba</a>
+        </div>
+
+        <!-- Fallback caso o iframe não carregue -->
         <div style="position:absolute; bottom:15px; left:50%; transform:translateX(-50%);
                     background:rgba(0,0,0,0.85); color:white; padding:8px 16px; 
                     border-radius:8px; font-size:13px; z-index:20;" 
