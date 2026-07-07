@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plataforma de Estudos de Matemática</title>
+
+  <!-- Firebase SDK (Realtime Database + Auth) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+  <style>
+    /* =============================================
+       VARIÁVEIS E RESET
+    ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-w: 300px;
+      --sidebar-bg: #1a1f2e;
+      --sidebar-text: #c8ccd8;
+      --sidebar-accent: #c9a84c;
+      --sidebar-hover: rgba(201,168,76,0.12);
+      --sidebar-active-bg: rgba(201,168,76,0.18);
+      --sidebar-active-text: #c9a84c;
+      --page-bg: #f5f0e8;
+      --page-bg2: #eee8dc;
+      --page-shadow: 0 12px 48px rgba(0,0,0,0.22);
+      --body-bg: #ede8df;
+      --text: #1a1f2e;
+      --muted: #7a808e;
+      --accent: #4f46e5;
+      --accent2: #c9a84c;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --radius: 10px;
+      --transition: 0.22s ease;
+      --font-serif: Georgia, 'Times New Roman', serif;
+      --font-sans: system-ui, -apple-system, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-sans);
+      background: var(--body-bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* =============================================
+       SPLASH / LOADING
+    ============================================= */
+    #splash {
+      position: fixed; inset: 0;
+      background: var(--sidebar-bg);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 18px;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+    .splash-logo {
+      width: 64px; height: 64px;
+      background: var(--sidebar-accent);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+    }
+    .splash-title {
+      color: #fff;
+      font-family: var(--font-serif);
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(201,168,76,0.25);
+      border-top-color: var(--sidebar-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* =============================================
+       LAYOUT PRINCIPAL
+    ============================================= */
+    #app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* =============================================
+       SIDEBAR
+    ============================================= */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      z-index: 10;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+    }
+
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    .sidebar-brand {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sidebar-brand-icon {
+      width: 40px; height: 40px;
+      background: var(--sidebar-accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .sidebar-brand-name {
+      color: #fff;
+      font-family: var(--font-serif);
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.3;
+    }
+    .sidebar-brand-sub {
+      color: var(--sidebar-accent);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 0 8px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .sidebar-empty {
+      padding: 32px 20px;
+      color: var(--sidebar-text);
+      font-size: 13px;
+      opacity: 0.5;
+      text-align: center;
+    }
+
+    .topic-item { border-bottom: 1px solid rgba(255,255,255,0.04); }
+
+    .topic-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px 12px 20px;
+      cursor: pointer;
+      color: var(--sidebar-text);
+      transition: background var(--transition), color var(--transition);
+      user-select: none;
+    }
+    .topic-header:hover { background: var(--sidebar-hover); color: #fff; }
+    .topic-header.open { color: #fff; }
+    .topic-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .topic-label {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+    .topic-arrow {
+      font-size: 11px;
+      opacity: 0.5;
+      transition: transform var(--transition);
+    }
+    .topic-header.open .topic-arrow { transform: rotate(90deg); }
+
+    .subtopics-list {
+      display: none;
+      background: rgba(0,0,0,0.18);
+    }
+    .subtopics-list.open { display: block; }
+
+    .subtopic-item {
+      display: block;
+      padding: 9px 16px 9px 40px;
+      cursor: pointer;
+      font-size: 13px;
+      color: rgba(200,204,216,0.75);
+      transition: background var(--transition), color var(--transition);
+      border: none; background: none; width: 100%; text-align: left;
+    }
+    .subtopic-item:hover { background: var(--sidebar-hover); color: #fff; }
+    .subtopic-item.active {
+      background: var(--sidebar-active-bg);
+      color: var(--sidebar-active-text);
+      font-weight: 600;
+    }
+
+    .sidebar-footer {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    .admin-btn {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      color: rgba(200,204,216,0.6);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .admin-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .admin-btn svg { opacity: 0.6; }
+
+    /* =============================================
+       ÁREA PRINCIPAL
+    ============================================= */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* =============================================
+       TELA DE BOAS-VINDAS
+    ============================================= */
+    #home {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      padding: 40px;
+    }
+    #home.hidden { display: none; }
+    .home-icon {
+      width: 96px; height: 96px;
+      background: rgba(201,168,76,0.12);
+      border-radius: 24px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+    .home-title {
+      font-family: var(--font-serif);
+      font-size: 30px;
+      color: #1a1f2e;
+      text-align: center;
+      letter-spacing: -0.01em;
+    }
+    .home-sub {
+      font-size: 15px;
+      color: var(--muted);
+      text-align: center;
+      max-width: 400px;
+      line-height: 1.6;
+    }
+
+    /* =============================================
+       VISUALIZADOR DE LIVRO
+    ============================================= */
+    #viewer {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center;
+      padding: 28px 48px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #viewer.active { opacity: 1; pointer-events: all; }
+
+    .viewer-topbar {
+      width: 100%;
+      max-width: 820px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+    }
+    .viewer-breadcrumb {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .viewer-breadcrumb span { color: var(--text); font-weight: 500; }
+    .viewer-page-info {
+      font-size: 13px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .viewer-book-wrap {
+      position: relative;
+      width: 100%; max-width: 820px;
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .nav-btn {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      width: 48px; height: 48px;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 50%;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text);
+      transition: background var(--transition), transform var(--transition), opacity var(--transition);
+      z-index: 10;
+      font-size: 20px;
+    }
+    .nav-btn:hover { background: #fff; transform: translateY(-50%) scale(1.08); }
+    .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: translateY(-50%); }
+    #btn-prev { left: -28px; }
+    #btn-next { right: -28px; }
+
+    /* Livro */
+    .book {
+      width: 100%;
+      aspect-ratio: 1 / 1.41;
+      max-height: calc(100vh - 200px);
+      width: auto;
+      position: relative;
+      perspective: 1200px;
+    }
+
+    .page-container {
+      position: absolute; inset: 0;
+      border-radius: 2px 14px 14px 2px;
+      overflow: hidden;
+      box-shadow: var(--page-shadow);
+      background: var(--page-bg);
+      /* Binding left edge */
+    }
+    .book-spine {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 24px;
+      background: linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.04) 60%, transparent 100%);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .book-spine-line {
+      position: absolute;
+      left: 2px; top: 0; bottom: 0;
+      width: 1px;
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* Page flip animation */
+    .page-slide {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: 32px 40px 32px 52px;
+      background: var(--page-bg);
+    }
+    .page-slide.enter-right {
+      animation: enterRight 0.45s cubic-bezier(0.22,0.61,0.36,1) forwards;
+    }
+    .page-slide.enter-left {
+      animation: enterLeft 0.45s cubic-bezier(0.22,0.61,0.36,1) forwards;
+    }
+    .page-slide.exit-left {
+      animation: exitLeft 0.32s ease-in forwards;
+    }
+    .page-slide.exit-right {
+      animation: exitRight 0.32s ease-in forwards;
+    }
+
+    @keyframes enterRight {
+      from { opacity: 0; transform: translateX(60px) rotateY(-12deg); }
+      to   { opacity: 1; transform: translateX(0) rotateY(0); }
+    }
+    @keyframes enterLeft {
+      from { opacity: 0; transform: translateX(-60px) rotateY(12deg); }
+      to   { opacity: 1; transform: translateX(0) rotateY(0); }
+    }
+    @keyframes exitLeft {
+      from { opacity: 1; transform: translateX(0) rotateY(0); }
+      to   { opacity: 0; transform: translateX(-50px) rotateY(8deg); }
+    }
+    @keyframes exitRight {
+      from { opacity: 1; transform: translateX(0) rotateY(0); }
+      to   { opacity: 0; transform: translateX(50px) rotateY(-8deg); }
+    }
+
+    .page-content {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .page-content img {
+      max-width: 100%; max-height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .page-content iframe {
+      width: 100%; height: 100%;
+      border: none;
+      border-radius: 4px;
+    }
+    .page-content .link-card {
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
+    }
+    .page-content .link-card .link-icon {
+      font-size: 56px;
+      opacity: 0.5;
+    }
+    .page-content .link-card a {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      transition: opacity var(--transition);
+    }
+    .page-content .link-card a:hover { opacity: 0.85; }
+    .page-content .link-card .link-title {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      color: var(--text);
+    }
+
+    .no-materials {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--muted);
+    }
+    .no-materials .icon { font-size: 48px; opacity: 0.3; }
+    .no-materials p { font-family: var(--font-serif); font-size: 18px; }
+    .no-materials small { font-size: 13px; }
+
+    /* =============================================
+       MODAL DE LOGIN ADMIN
+    ============================================= */
+    #admin-login-overlay {
+      position: fixed; inset: 0;
+      background: rgba(26,31,46,0.75);
+      backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    #admin-login-overlay.open { display: flex; }
+
+    .login-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 40px;
+      width: 380px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+    }
+    .login-box-header {
+      text-align: center; margin-bottom: 28px;
+    }
+    .login-box-icon {
+      width: 56px; height: 56px;
+      background: #1a1f2e;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      margin: 0 auto 14px;
+    }
+    .login-box h2 {
+      font-family: var(--font-serif);
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+    .login-box p {
+      font-size: 13px; color: var(--muted);
+    }
+    .login-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--danger);
+      margin-bottom: 16px;
+      display: none;
+    }
+    .login-error.show { display: block; }
+
+    /* =============================================
+       PAINEL ADMIN
+    ============================================= */
+    #admin-panel {
+      position: fixed; inset: 0;
+      background: #f1f5f9;
+      display: none; flex-direction: column;
+      z-index: 500;
+      overflow: hidden;
+    }
+    #admin-panel.open { display: flex; }
+
+    .admin-topbar {
+      background: #1a1f2e;
+      color: #fff;
+      padding: 0 28px;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .admin-topbar-left {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .admin-topbar-logo {
+      width: 34px; height: 34px;
+      background: var(--sidebar-accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .admin-topbar h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    .admin-topbar-right {
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .admin-body {
+      display: flex; flex: 1; overflow: hidden;
+    }
+
+    /* Admin sidebar */
+    .admin-sidebar {
+      width: 220px; min-width: 220px;
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+    .admin-sidebar-section {
+      padding: 6px 16px 4px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .admin-nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 20px;
+      font-size: 13.5px;
+      color: #475569;
+      cursor: pointer;
+      border: none; background: none; width: 100%; text-align: left;
+      transition: background var(--transition), color var(--transition);
+      border-radius: 0;
+    }
+    .admin-nav-item:hover { background: #f8fafc; color: #1e293b; }
+    .admin-nav-item.active { background: #f0f4ff; color: #4f46e5; font-weight: 600; }
+    .admin-nav-item .icon { font-size: 16px; }
+
+    /* Admin content */
+    .admin-content {
+      flex: 1; overflow-y: auto;
+      padding: 28px 32px;
+    }
+
+    /* Admin views */
+    .admin-view { display: none; }
+    .admin-view.active { display: block; }
+
+    .admin-view-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .admin-view-header h2 {
+      font-size: 20px; font-weight: 700;
+    }
+    .admin-view-header p {
+      font-size: 13px; color: var(--muted); margin-top: 2px;
+    }
+
+    /* Stats cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 22px;
+      border: 1px solid #e2e8f0;
+    }
+    .stat-card .stat-val {
+      font-size: 32px; font-weight: 700; color: var(--text);
+      line-height: 1;
+    }
+    .stat-card .stat-label {
+      font-size: 13px; color: var(--muted); margin-top: 6px;
+    }
+
+    /* Data table / list */
+    .data-list {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .data-list-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      display: grid;
+      gap: 12px;
+    }
+    .data-list-header.topics-cols { grid-template-columns: 1fr 120px 80px; }
+    .data-list-header.subtopics-cols { grid-template-columns: 140px 1fr 100px 80px; }
+    .data-list-header.materials-cols { grid-template-columns: 1fr 80px 120px 80px; }
+
+    .data-row {
+      padding: 12px 20px;
+      border-bottom: 1px solid #f8fafc;
+      display: grid; gap: 12px; align-items: center;
+      font-size: 13.5px;
+    }
+    .data-row.topics-cols { grid-template-columns: 1fr 120px 80px; }
+    .data-row.subtopics-cols { grid-template-columns: 140px 1fr 100px 80px; }
+    .data-row.materials-cols { grid-template-columns: 1fr 80px 120px 80px; }
+    .data-row:last-child { border-bottom: none; }
+    .data-row:hover { background: #fafafa; }
+
+    .data-row-name {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 500;
+    }
+    .topic-color-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      background: #f1f5f9; color: #475569;
+    }
+    .badge.pdf { background: #fef3c7; color: #92400e; }
+    .badge.image { background: #dcfce7; color: #166534; }
+    .badge.link { background: #e0e7ff; color: #3730a3; }
+
+    .row-actions {
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* =============================================
+       FORMULÁRIOS MODAIS
+    ============================================= */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 800;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 32px;
+      width: 500px;
+      max-width: calc(100vw - 40px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .modal h3 {
+      font-size: 18px; font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .modal .modal-sub {
+      font-size: 13px; color: var(--muted);
+      margin-bottom: 22px;
+    }
+
+    /* =============================================
+       CAMPOS DE FORMULÁRIO
+    ============================================= */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px; font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+      color: var(--text);
+      transition: border-color var(--transition);
+      outline: none;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+
+    /* =============================================
+       BOTÕES
+    ============================================= */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13.5px; font-weight: 600;
+      cursor: pointer; border: none;
+      transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+      text-decoration: none;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn:hover { opacity: 0.87; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: 1; box-shadow: 0 4px 16px rgba(79,70,229,0.3); }
+    .btn-secondary { background: #f1f5f9; color: #374151; border: 1px solid #e2e8f0; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--muted); padding: 6px 10px; }
+    .btn-ghost:hover { color: var(--text); background: #f1f5f9; }
+    .btn-icon { padding: 7px; border-radius: 7px; }
+    .btn-sm { padding: 5px 11px; font-size: 12px; }
+    .btn-full { width: 100%; justify-content: center; }
+    .btn-gold { background: var(--sidebar-accent); color: #fff; }
+
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 10px;
+      margin-top: 24px; padding-top: 16px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 40px; opacity: 0.3; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    /* =============================================
+       TOAST NOTIFICATIONS
+    ============================================= */
+    #toast-container {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 10px;
+      z-index: 9999;
+    }
+    .toast {
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      animation: toastIn 0.3s ease;
+      display: flex; align-items: center; gap: 10px;
+      max-width: 320px;
+    }
+    .toast.success { background: #16a34a; color: #fff; }
+    .toast.error { background: var(--danger); color: #fff; }
+    .toast.info { background: #1a1f2e; color: #fff; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* =============================================
+       RESPONSIVO
+    ============================================= */
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 260px; }
+      #sidebar {
+        position: fixed; left: -260px; top: 0; bottom: 0;
+        z-index: 200;
+        transition: left var(--transition);
+      }
+      #sidebar.open { left: 0; }
+      .menu-toggle {
+        display: flex; !important
+      }
+      #viewer { padding: 16px 32px; }
+      #btn-prev { left: -20px; }
+      #btn-next { right: -20px; }
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+
+    .menu-toggle {
+      display: none;
+      position: fixed; top: 16px; left: 16px;
+      width: 40px; height: 40px;
+      background: var(--sidebar-bg);
+      color: #fff;
+      border-radius: 10px;
+      align-items: center; justify-content: center;
+      cursor: pointer; z-index: 201;
+      border: none; font-size: 20px;
+    }
+
+    /* Confirm delete modal */
+    .confirm-modal {
+      width: 380px;
+    }
+    .confirm-modal p { font-size: 14px; color: #475569; margin-bottom: 0; }
+    .confirm-modal .modal-sub { margin-bottom: 10px; }
+    .confirm-modal strong { color: var(--danger); }
+    .confirm-modal .modal-footer { margin-top: 16px; }
+
+    /* Topic color picker inline */
+    .color-row {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+    }
+    .color-swatch {
+      width: 28px; height: 28px; border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: border-color var(--transition), transform var(--transition);
+    }
+    .color-swatch.selected { border-color: #1a1f2e; transform: scale(1.15); }
+    .color-swatch:hover { transform: scale(1.1); }
+  </style>
+</head>
+<body>
+
+<!-- ===================== SPLASH ===================== -->
+<div id="splash">
+  <div class="splash-logo">📚</div>
+  <div class="splash-title">Plataforma de Estudos</div>
+  <div class="spinner"></div>
+</div>
+
+<!-- ===================== MENU TOGGLE (mobile) ===================== -->
+<button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
+
+<!-- ===================== TOAST ===================== -->
+<div id="toast-container"></div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">📚</div>
+        <div>
+          <div class="sidebar-brand-name">Plataforma de Estudos</div>
+          <div class="sidebar-brand-sub">Matemática</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav" id="topics-nav">
+      <div class="sidebar-empty">Carregando temas...</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="admin-btn" id="open-admin-btn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Área Administrativa
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main id="main">
+
+    <!-- HOME -->
+    <div id="home">
+      <div class="home-icon">📖</div>
+      <h1 class="home-title">Bem-vindo aos seus estudos.</h1>
+      <p class="home-sub">Selecione um tema no menu à esquerda para começar a estudar.</p>
+    </div>
+
+    <!-- VIEWER -->
+    <div id="viewer">
+      <div class="viewer-topbar">
+        <div class="viewer-breadcrumb" id="viewer-breadcrumb">
+          Tema &rsaquo; <span>Subtema</span>
+        </div>
+        <div class="viewer-page-info" id="viewer-page-info">Página 1 de 1</div>
+      </div>
+      <div class="viewer-book-wrap">
+        <button class="nav-btn" id="btn-prev" disabled title="Página anterior">‹</button>
+        <div class="book">
+          <div class="page-container">
+            <div class="book-spine"><div class="book-spine-line"></div></div>
+            <div id="page-slot"></div>
+          </div>
+        </div>
+        <button class="nav-btn" id="btn-next" disabled title="Próxima página">›</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===================== ADMIN LOGIN ===================== -->
+<div id="admin-login-overlay">
+  <div class="login-box">
+    <div class="login-box-header">
+      <div class="login-box-icon">🔐</div>
+      <h2>Acesso Restrito</h2>
+      <p>Área de administração da plataforma</p>
+    </div>
+    <div class="login-error" id="login-error">Senha incorreta. Tente novamente.</div>
+    <div class="form-group">
+      <label for="login-password">Senha de Administrador</label>
+      <input type="password" id="login-password" placeholder="Digite a senha..." autocomplete="current-password" />
+    </div>
+    <div class="modal-footer" style="border:none;margin-top:4px;padding-top:0;">
+      <button class="btn btn-secondary" id="login-cancel-btn">Cancelar</button>
+      <button class="btn btn-primary btn-full" id="login-submit-btn" style="flex:1">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ADMIN PANEL ===================== -->
+<div id="admin-panel">
+  <div class="admin-topbar">
+    <div class="admin-topbar-left">
+      <div class="admin-topbar-logo">📚</div>
+      <h1>Administração</h1>
+    </div>
+    <div class="admin-topbar-right">
+      <button class="btn btn-ghost" id="close-admin-btn" style="color:#94a3b8">✕ Sair do painel</button>
+    </div>
+  </div>
+  <div class="admin-body">
+    <!-- Admin Nav -->
+    <div class="admin-sidebar">
+      <div class="admin-sidebar-section">Visão Geral</div>
+      <button class="admin-nav-item active" data-view="dashboard">
+        <span class="icon">📊</span> Dashboard
+      </button>
+      <div class="admin-sidebar-section" style="margin-top:8px;">Conteúdo</div>
+      <button class="admin-nav-item" data-view="topics">
+        <span class="icon">📂</span> Temas
+      </button>
+      <button class="admin-nav-item" data-view="subtopics">
+        <span class="icon">📑</span> Subtemas
+      </button>
+      <button class="admin-nav-item" data-view="materials">
+        <span class="icon">🔗</span> Materiais
+      </button>
+    </div>
+    <!-- Admin Content -->
+    <div class="admin-content">
+
+      <!-- DASHBOARD -->
+      <div class="admin-view active" id="view-dashboard">
+        <div class="admin-view-header">
+          <div>
+            <h2>Dashboard</h2>
+            <p>Visão geral do conteúdo da plataforma</p>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="stat-topics">–</div>
+            <div class="stat-label">Temas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-subtopics">–</div>
+            <div class="stat-label">Subtemas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-materials">–</div>
+            <div class="stat-label">Materiais</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOPICS -->
+      <div class="admin-view" id="view-topics">
+        <div class="admin-view-header">
+          <div>
+            <h2>Temas</h2>
+            <p>Capítulos principais de Matemática</p>
+          </div>
+          <button class="btn btn-primary" id="add-topic-btn">+ Novo Tema</button>
+        </div>
+        <div class="data-list" id="topics-table">
+          <div class="data-list-header topics-cols">
+            <span>Tema</span><span>Cor</span><span>Ações</span>
+          </div>
+          <div id="topics-rows"></div>
+        </div>
+      </div>
+
+      <!-- SUBTOPICS -->
+      <div class="admin-view" id="view-subtopics">
+        <div class="admin-view-header">
+          <div>
+            <h2>Subtemas</h2>
+            <p>Seções dentro de cada tema</p>
+          </div>
+          <button class="btn btn-primary" id="add-subtopic-btn">+ Novo Subtema</button>
+        </div>
+        <div class="data-list">
+          <div class="data-list-header subtopics-cols">
+            <span>Tema</span><span>Subtema</span><span>Descrição</span><span>Ações</span>
+          </div>
+          <div id="subtopics-rows"></div>
+        </div>
+      </div>
+
+      <!-- MATERIALS -->
+      <div class="admin-view" id="view-materials">
+        <div class="admin-view-header">
+          <div>
+            <h2>Materiais</h2>
+            <p>Links de PDFs, imagens e recursos externos</p>
+          </div>
+          <button class="btn btn-primary" id="add-material-btn">+ Novo Material</button>
+        </div>
+        <div class="data-list">
+          <div class="data-list-header materials-cols">
+            <span>Título / URL</span><span>Tipo</span><span>Subtema</span><span>Ações</span>
+          </div>
+          <div id="materials-rows"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAIS ===================== -->
+
+<!-- Modal: Topic -->
+<div class="modal-overlay" id="topic-modal">
+  <div class="modal">
+    <h3 id="topic-modal-title">Novo Tema</h3>
+    <p class="modal-sub" id="topic-modal-sub">Adicione um tema principal de matemática</p>
+    <input type="hidden" id="topic-id" />
+    <div class="form-group">
+      <label>Título</label>
+      <input type="text" id="topic-title" placeholder="Ex: Álgebra, Geometria..." />
+    </div>
+    <div class="form-group">
+      <label>Descrição (opcional)</label>
+      <input type="text" id="topic-desc" placeholder="Breve descrição do tema" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Ícone (emoji)</label>
+        <input type="text" id="topic-icon" placeholder="📐" maxlength="4" />
+      </div>
+      <div class="form-group">
+        <label>Cor</label>
+        <input type="color" id="topic-color" value="#4f46e5" style="height:38px;padding:2px 4px;cursor:pointer;" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('topic-modal')">Cancelar</button>
+      <button class="btn btn-primary" id="save-topic-btn">Salvar Tema</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Subtopic -->
+<div class="modal-overlay" id="subtopic-modal">
+  <div class="modal">
+    <h3 id="subtopic-modal-title">Novo Subtema</h3>
+    <p class="modal-sub">Adicione um subtema dentro de um tema</p>
+    <input type="hidden" id="subtopic-id" />
+    <div class="form-group">
+      <label>Tema</label>
+      <select id="subtopic-topic"></select>
+    </div>
+    <div class="form-group">
+      <label>Título</label>
+      <input type="text" id="subtopic-title" placeholder="Ex: Equações do 1º Grau" />
+    </div>
+    <div class="form-group">
+      <label>Descrição (opcional)</label>
+      <input type="text" id="subtopic-desc" placeholder="Breve descrição" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('subtopic-modal')">Cancelar</button>
+      <button class="btn btn-primary" id="save-subtopic-btn">Salvar Subtema</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Material -->
+<div class="modal-overlay" id="material-modal">
+  <div class="modal">
+    <h3 id="material-modal-title">Novo Material</h3>
+    <p class="modal-sub">Adicione um link de PDF, imagem ou recurso externo</p>
+    <input type="hidden" id="material-id" />
+    <div class="form-group">
+      <label>Subtema</label>
+      <select id="material-subtopic"></select>
+    </div>
+    <div class="form-group">
+      <label>Título do Material</label>
+      <input type="text" id="material-title" placeholder="Ex: Apostila Capítulo 1" />
+    </div>
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="material-type">
+        <option value="pdf">PDF</option>
+        <option value="image">Imagem</option>
+        <option value="link">Link / Recurso</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>URL do arquivo</label>
+      <input type="url" id="material-url" placeholder="https://drive.google.com/..." />
+    </div>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#64748b;margin-top:-8px;margin-bottom:16px;line-height:1.6;">
+      💡 <strong>Google Drive:</strong> abra o arquivo → Compartilhar → "Qualquer pessoa com o link" → cole a URL aqui.<br/>
+      Para PDFs do Drive, o embed funcionará automaticamente.
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('material-modal')">Cancelar</button>
+      <button class="btn btn-primary" id="save-material-btn">Salvar Material</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirm Delete -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal confirm-modal">
+    <h3>Confirmar exclusão</h3>
+    <p class="modal-sub"><strong id="confirm-item-name"></strong></p>
+    <p>Esta ação não pode ser desfeita. O item será removido permanentemente do Firebase.</p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirm-modal')">Cancelar</button>
+      <button class="btn btn-danger" id="confirm-delete-btn">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================
+   ⚙️  CONFIGURAÇÃO — edite estas linhas com seus dados
+   ========================================================== */
+const firebaseConfig = {
+    apiKey: "AIzaSyCazoHmg4nv2I3eV0iU0gAEEk3fPs_aPOs",
+    authDomain: "livrodematematica-cc6ca.firebaseapp.com",
+    databaseURL: "https://livrodematematica-cc6ca-default-rtdb.firebaseio.com",
+    projectId: "livrodematematica-cc6ca",
+    storageBucket: "livrodematematica-cc6ca.firebasestorage.app",
+    messagingSenderId: "724930517163",
+    appId: "1:724930517163:web:cc53d9db0cff75ad88bfee",
+    measurementId: "G-ELBZ6CWG2E"
+  };
+
+// Senha do painel administrativo
+const ADMIN_PASSWORD = "admin123";
+
+/* ==========================================================
+   FIM DA CONFIGURAÇÃO
+   ========================================================== */
+
+// --- Firebase Init ---
+let db;
+let auth;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  auth = firebase.auth();
+} catch(e) {
+  console.error("Firebase não inicializado:", e);
+}
+
+// Autenticação anônima — necessária para permissões de escrita no Firebase
+function ensureFirebaseAuth() {
+  if (!auth) return Promise.resolve();
+  if (auth.currentUser) return Promise.resolve();
+  return auth.signInAnonymously().catch(e => {
+    console.warn("Autenticação anônima não disponível:", e.message);
+  });
+}
+
+// --- Estado Global ---
+let state = {
+  topics: {},      // { id: { title, description, icon, color, order } }
+  subtopics: {},   // { id: { topicId, title, description, order } }
+  materials: {},   // { id: { subtopicId, title, type, url, order } }
+  currentSubtopicId: null,
+  currentPageIndex: 0,
+  currentPages: [],
+  isAdmin: false,
+  pendingDelete: null,  // { ref, name }
+};
+
+/* ==========================================================
+   UTILITÁRIOS
+   ========================================================== */
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = (type==='success'?'✓ ':type==='error'?'✕ ':'ℹ ') + msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function sortByOrder(obj) {
+  return Object.entries(obj || {})
+    .map(([id, val]) => ({ id, ...val }))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+function getTopicName(topicId) {
+  return state.topics[topicId]?.title || '(sem tema)';
+}
+function getSubtopicName(subtopicId) {
+  return state.subtopics[subtopicId]?.title || '(sem subtema)';
+}
+
+// Converte URL do Google Drive para embed
+function toEmbedUrl(url, type) {
+  if (!url) return '';
+  // Google Drive file view → preview
+  const gdrive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (gdrive) {
+    const id = gdrive[1];
+    return `https://drive.google.com/file/d/${id}/preview`;
+  }
+  // Google Drive open link
+  const gopen = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (gopen) {
+    return `https://drive.google.com/file/d/${gopen[1]}/preview`;
+  }
+  return url;
+}
+
+/* ==========================================================
+   FIREBASE — LISTENERS EM TEMPO REAL
+   ========================================================== */
+function startListeners() {
+  if (!db) return;
+
+  db.ref('topics').on('value', snap => {
+    state.topics = snap.val() || {};
+    renderSidebar();
+    renderAdminTopics();
+    renderAdminSubtopics();
+    updateStats();
+  });
+
+  db.ref('subtopics').on('value', snap => {
+    state.subtopics = snap.val() || {};
+    renderSidebar();
+    renderAdminSubtopics();
+    renderAdminMaterials();
+    updateStats();
+  });
+
+  db.ref('materials').on('value', snap => {
+    state.materials = snap.val() || {};
+    if (state.currentSubtopicId) loadPages(state.currentSubtopicId);
+    renderAdminMaterials();
+    updateStats();
+  });
+}
+
+/* ==========================================================
+   SIDEBAR — ÁREA PÚBLICA
+   ========================================================== */
+function renderSidebar() {
+  const nav = document.getElementById('topics-nav');
+  const topics = sortByOrder(state.topics);
+
+  if (!topics.length) {
+    nav.innerHTML = '<div class="sidebar-empty">Nenhum tema cadastrado ainda.</div>';
+    return;
+  }
+
+  nav.innerHTML = topics.map(topic => {
+    const subtopics = sortByOrder(state.subtopics)
+      .filter(s => s.topicId === topic.id);
+
+    return `
+      <div class="topic-item">
+        <div class="topic-header" onclick="toggleTopic('${topic.id}', this)">
+          <div class="topic-dot" style="background:${topic.color||'#6b7280'}"></div>
+          <span class="topic-label">${escHtml(topic.title)}</span>
+          <span class="topic-arrow">›</span>
+        </div>
+        <div class="subtopics-list" id="sub-list-${topic.id}">
+          ${subtopics.length
+            ? subtopics.map(s => `
+                <button class="subtopic-item ${state.currentSubtopicId===s.id?'active':''}"
+                  onclick="selectSubtopic('${s.id}','${escHtml(topic.title)}','${escHtml(s.title)}')">
+                  ${escHtml(s.title)}
+                </button>`).join('')
+            : '<div class="subtopic-item" style="opacity:.5;cursor:default">Nenhum subtema</div>'
+          }
+        </div>
+      </div>`;
+  }).join('');
+
+  // Re-open active topic
+  if (state.currentSubtopicId) {
+    const sub = state.subtopics[state.currentSubtopicId];
+    if (sub) {
+      const list = document.getElementById(`sub-list-${sub.topicId}`);
+      const hdr = list?.previousElementSibling;
+      if (list && hdr) { list.classList.add('open'); hdr.classList.add('open'); }
+    }
+  }
+}
+
+function toggleTopic(topicId, header) {
+  const list = document.getElementById(`sub-list-${topicId}`);
+  list.classList.toggle('open');
+  header.classList.toggle('open');
+}
+
+function selectSubtopic(subtopicId, topicTitle, subtopicTitle) {
+  state.currentSubtopicId = subtopicId;
+  document.getElementById('viewer-breadcrumb').innerHTML =
+    `${escHtml(topicTitle)} &rsaquo; <span>${escHtml(subtopicTitle)}</span>`;
+
+  document.getElementById('home').classList.add('hidden');
+  document.getElementById('viewer').classList.add('active');
+
+  loadPages(subtopicId);
+  renderSidebar(); // re-highlight active
+}
+
+function escHtml(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ==========================================================
+   BOOK VIEWER
+   ========================================================== */
+function loadPages(subtopicId) {
+  const mats = sortByOrder(state.materials)
+    .filter(m => m.subtopicId === subtopicId);
+
+  state.currentPages = mats;
+  state.currentPageIndex = 0;
+  renderPage(null); // no direction (initial load)
+  updatePageNav();
+}
+
+function renderPage(direction) {
+  const slot = document.getElementById('page-slot');
+  const pages = state.currentPages;
+  const idx = state.currentPageIndex;
+
+  if (!pages.length) {
+    slot.innerHTML = `
+      <div class="page-slide">
+        <div class="no-materials">
+          <div class="icon">📄</div>
+          <p>Nenhum material disponível</p>
+          <small>Adicione materiais via painel admin</small>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const mat = pages[idx];
+  const embedUrl = toEmbedUrl(mat.url, mat.type);
+  let inner;
+
+  if (mat.type === 'image') {
+    inner = `<img src="${escHtml(mat.url)}" alt="${escHtml(mat.title)}" loading="lazy" />`;
+  } else if (mat.type === 'pdf') {
+    inner = `<iframe src="${escHtml(embedUrl)}" title="${escHtml(mat.title)}" allow="autoplay" allowfullscreen></iframe>`;
+  } else {
+    inner = `
+      <div class="link-card">
+        <div class="link-icon">🔗</div>
+        <div class="link-title">${escHtml(mat.title)}</div>
+        <a href="${escHtml(mat.url)}" target="_blank" rel="noopener noreferrer">
+          Abrir recurso ↗
+        </a>
+      </div>`;
+  }
+
+  // Remove old page with exit animation
+  const old = slot.querySelector('.page-slide');
+  if (old && direction) {
+    old.classList.add(direction === 'next' ? 'exit-left' : 'exit-right');
+    old.addEventListener('animationend', () => old.remove(), { once: true });
+  } else if (old) {
+    old.remove();
+  }
+
+  const div = document.createElement('div');
+  div.className = 'page-slide';
+  if (direction) div.classList.add(direction === 'next' ? 'enter-right' : 'enter-left');
+  div.innerHTML = `<div class="page-content">${inner}</div>`;
+  slot.appendChild(div);
+
+  document.getElementById('viewer-page-info').textContent =
+    `Página ${idx+1} de ${pages.length}`;
+}
+
+function updatePageNav() {
+  const prev = document.getElementById('btn-prev');
+  const next = document.getElementById('btn-next');
+  prev.disabled = state.currentPageIndex <= 0;
+  next.disabled = state.currentPageIndex >= state.currentPages.length - 1;
+}
+
+document.getElementById('btn-prev').addEventListener('click', () => {
+  if (state.currentPageIndex > 0) {
+    state.currentPageIndex--;
+    renderPage('prev');
+    updatePageNav();
+  }
+});
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (state.currentPageIndex < state.currentPages.length - 1) {
+    state.currentPageIndex++;
+    renderPage('next');
+    updatePageNav();
+  }
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (document.getElementById('admin-panel').classList.contains('open')) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') document.getElementById('btn-next').click();
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   document.getElementById('btn-prev').click();
+});
+
+/* ==========================================================
+   ADMIN LOGIN
+   ========================================================== */
+document.getElementById('open-admin-btn').addEventListener('click', () => {
+  if (state.isAdmin) { openAdminPanel(); return; }
+  document.getElementById('admin-login-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('login-password').focus(), 100);
+});
+
+document.getElementById('login-cancel-btn').addEventListener('click', () => {
+  document.getElementById('admin-login-overlay').classList.remove('open');
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').classList.remove('show');
+});
+
+function doLogin() {
+  const pwd = document.getElementById('login-password').value;
+  if (pwd === ADMIN_PASSWORD) {
+    state.isAdmin = true;
+    document.getElementById('admin-login-overlay').classList.remove('open');
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-error').classList.remove('show');
+    // Autentica anonimamente no Firebase para permitir operações de escrita
+    ensureFirebaseAuth().then(() => openAdminPanel());
+  } else {
+    document.getElementById('login-error').classList.add('show');
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-password').focus();
+  }
+}
+
+document.getElementById('login-submit-btn').addEventListener('click', doLogin);
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+/* ==========================================================
+   ADMIN PANEL
+   ========================================================== */
+function openAdminPanel() {
+  document.getElementById('admin-panel').classList.add('open');
+  updateStats();
+}
+
+document.getElementById('close-admin-btn').addEventListener('click', () => {
+  document.getElementById('admin-panel').classList.remove('open');
+});
+
+// Admin nav tabs
+document.querySelectorAll('.admin-nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.admin-nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.admin-view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  });
+});
+
+function updateStats() {
+  document.getElementById('stat-topics').textContent = Object.keys(state.topics).length;
+  document.getElementById('stat-subtopics').textContent = Object.keys(state.subtopics).length;
+  document.getElementById('stat-materials').textContent = Object.keys(state.materials).length;
+}
+
+/* ==========================================================
+   CRUD — TEMAS
+   ========================================================== */
+document.getElementById('add-topic-btn').addEventListener('click', () => {
+  document.getElementById('topic-id').value = '';
+  document.getElementById('topic-modal-title').textContent = 'Novo Tema';
+  document.getElementById('topic-modal-sub').textContent = 'Adicione um tema principal de matemática';
+  document.getElementById('topic-title').value = '';
+  document.getElementById('topic-desc').value = '';
+  document.getElementById('topic-icon').value = '';
+  document.getElementById('topic-color').value = '#4f46e5';
+  openModal('topic-modal');
+  setTimeout(() => document.getElementById('topic-title').focus(), 100);
+});
+
+document.getElementById('save-topic-btn').addEventListener('click', async () => {
+  if (!db) { toast('Firebase não inicializado. Verifique as credenciais.', 'error'); return; }
+
+  const id = document.getElementById('topic-id').value;
+  const title = document.getElementById('topic-title').value.trim();
+  if (!title) { toast('Título obrigatório', 'error'); return; }
+
+  const data = {
+    title,
+    description: document.getElementById('topic-desc').value.trim() || '',
+    icon:  document.getElementById('topic-icon').value.trim() || '📐',
+    color: document.getElementById('topic-color').value,
+    order: id ? (state.topics[id]?.order ?? 0) : Object.keys(state.topics).length,
+  };
+
+  try {
+    await ensureFirebaseAuth();
+    if (id) {
+      await db.ref(`topics/${id}`).update(data);
+      toast('Tema atualizado!');
+    } else {
+      await db.ref('topics').push(data);
+      toast('Tema criado!');
+    }
+    closeModal('topic-modal');
+  } catch(e) {
+    const msg = e?.message || e?.code || 'Erro desconhecido';
+    if (msg.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+      toast('Sem permissão de escrita. Verifique as regras do Firebase Database.', 'error');
+    } else {
+      toast('Erro ao salvar: ' + msg, 'error');
+    }
+  }
+});
+
+function renderAdminTopics() {
+  const rows = document.getElementById('topics-rows');
+  const topics = sortByOrder(state.topics);
+  if (!topics.length) {
+    rows.innerHTML = '<div class="empty-state"><div class="icon">📂</div><p>Nenhum tema cadastrado</p></div>';
+    return;
+  }
+  rows.innerHTML = topics.map(t => `
+    <div class="data-row topics-cols">
+      <div class="data-row-name">
+        <span style="font-size:18px">${escHtml(t.icon||'📐')}</span>
+        ${escHtml(t.title)}
+      </div>
+      <div>
+        <span style="display:inline-flex;align-items:center;gap:6px;">
+          <span style="width:14px;height:14px;border-radius:50%;background:${escHtml(t.color||'#888')};display:inline-block;"></span>
+          ${escHtml(t.color||'')}
+        </span>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick="editTopic('${t.id}')">✏️</button>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Excluir" onclick="confirmDelete('topics/${t.id}','${escHtml(t.title)}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function editTopic(id) {
+  const t = state.topics[id];
+  if (!t) { toast('Tema não encontrado', 'error'); return; }
+  document.getElementById('topic-id').value = id;
+  document.getElementById('topic-modal-title').textContent = 'Editar Tema';
+  document.getElementById('topic-modal-sub').textContent = 'Atualize as informações do tema';
+  document.getElementById('topic-title').value = t.title || '';
+  document.getElementById('topic-desc').value = t.description || '';
+  document.getElementById('topic-icon').value = t.icon || '';
+  // Garante que a cor é um hex válido antes de atribuir ao input color
+  const color = /^#[0-9a-fA-F]{6}$/.test(t.color) ? t.color : '#4f46e5';
+  document.getElementById('topic-color').value = color;
+  openModal('topic-modal');
+}
+
+/* ==========================================================
+   CRUD — SUBTEMAS
+   ========================================================== */
+function populateTopicsSelect(selectId, selectedTopicId) {
+  const sel = document.getElementById(selectId);
+  const topics = sortByOrder(state.topics);
+  sel.innerHTML = topics.length
+    ? topics.map(t => `<option value="${t.id}" ${t.id===selectedTopicId?'selected':''}>${escHtml(t.title)}</option>`).join('')
+    : '<option value="">Nenhum tema disponível</option>';
+}
+
+function populateSubtopicsSelect(selectId, selectedSubtopicId) {
+  const sel = document.getElementById(selectId);
+  const subs = sortByOrder(state.subtopics);
+  sel.innerHTML = subs.length
+    ? subs.map(s => {
+        const tName = getTopicName(s.topicId);
+        return `<option value="${s.id}" ${s.id===selectedSubtopicId?'selected':''}>${escHtml(tName)} › ${escHtml(s.title)}</option>`;
+      }).join('')
+    : '<option value="">Nenhum subtema disponível</option>';
+}
+
+document.getElementById('add-subtopic-btn').addEventListener('click', () => {
+  document.getElementById('subtopic-id').value = '';
+  document.getElementById('subtopic-modal-title').textContent = 'Novo Subtema';
+  document.getElementById('subtopic-title').value = '';
+  document.getElementById('subtopic-desc').value = '';
+  populateTopicsSelect('subtopic-topic', null);
+  openModal('subtopic-modal');
+  setTimeout(() => document.getElementById('subtopic-title').focus(), 100);
+});
+
+document.getElementById('save-subtopic-btn').addEventListener('click', async () => {
+  if (!db) { toast('Firebase não inicializado. Verifique as credenciais.', 'error'); return; }
+
+  const id = document.getElementById('subtopic-id').value;
+  const title = document.getElementById('subtopic-title').value.trim();
+  const topicId = document.getElementById('subtopic-topic').value;
+  if (!title) { toast('Título obrigatório', 'error'); return; }
+  if (!topicId) { toast('Selecione um tema', 'error'); return; }
+
+  const data = {
+    topicId,
+    title,
+    description: document.getElementById('subtopic-desc').value.trim() || '',
+    order: id ? (state.subtopics[id]?.order ?? 0) : Object.keys(state.subtopics).length,
+  };
+
+  try {
+    await ensureFirebaseAuth();
+    if (id) {
+      await db.ref(`subtopics/${id}`).update(data);
+      toast('Subtema atualizado!');
+    } else {
+      await db.ref('subtopics').push(data);
+      toast('Subtema criado!');
+    }
+    closeModal('subtopic-modal');
+  } catch(e) {
+    const msg = e?.message || e?.code || 'Erro desconhecido';
+    if (msg.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+      toast('Sem permissão de escrita. Verifique as regras do Firebase Database.', 'error');
+    } else {
+      toast('Erro ao salvar: ' + msg, 'error');
+    }
+  }
+});
+
+function renderAdminSubtopics() {
+  const rows = document.getElementById('subtopics-rows');
+  const subs = sortByOrder(state.subtopics);
+  if (!subs.length) {
+    rows.innerHTML = '<div class="empty-state"><div class="icon">📑</div><p>Nenhum subtema cadastrado</p></div>';
+    return;
+  }
+  rows.innerHTML = subs.map(s => `
+    <div class="data-row subtopics-cols">
+      <div>${escHtml(getTopicName(s.topicId))}</div>
+      <div class="data-row-name">${escHtml(s.title)}</div>
+      <div style="color:var(--muted);font-size:12.5px;">${escHtml(s.description||'–')}</div>
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick="editSubtopic('${s.id}')">✏️</button>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Excluir" onclick="confirmDelete('subtopics/${s.id}','${escHtml(s.title)}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function editSubtopic(id) {
+  const s = state.subtopics[id];
+  document.getElementById('subtopic-id').value = id;
+  document.getElementById('subtopic-modal-title').textContent = 'Editar Subtema';
+  document.getElementById('subtopic-title').value = s.title || '';
+  document.getElementById('subtopic-desc').value = s.description || '';
+  populateTopicsSelect('subtopic-topic', s.topicId);
+  openModal('subtopic-modal');
+}
+
+/* ==========================================================
+   CRUD — MATERIAIS
+   ========================================================== */
+document.getElementById('add-material-btn').addEventListener('click', () => {
+  document.getElementById('material-id').value = '';
+  document.getElementById('material-modal-title').textContent = 'Novo Material';
+  document.getElementById('material-title').value = '';
+  document.getElementById('material-url').value = '';
+  document.getElementById('material-type').value = 'pdf';
+  populateSubtopicsSelect('material-subtopic', null);
+  openModal('material-modal');
+  setTimeout(() => document.getElementById('material-title').focus(), 100);
+});
+
+document.getElementById('save-material-btn').addEventListener('click', async () => {
+  if (!db) { toast('Firebase não inicializado. Verifique as credenciais.', 'error'); return; }
+
+  const id = document.getElementById('material-id').value;
+  const title = document.getElementById('material-title').value.trim();
+  const url = document.getElementById('material-url').value.trim();
+  const subtopicId = document.getElementById('material-subtopic').value;
+  const type = document.getElementById('material-type').value;
+
+  if (!title) { toast('Título obrigatório', 'error'); return; }
+  if (!url)   { toast('URL obrigatória', 'error'); return; }
+  if (!subtopicId) { toast('Selecione um subtema', 'error'); return; }
+
+  const data = {
+    subtopicId, title, url, type,
+    order: id ? (state.materials[id]?.order ?? 0) : Object.keys(state.materials).length,
+  };
+
+  try {
+    await ensureFirebaseAuth();
+    if (id) {
+      await db.ref(`materials/${id}`).update(data);
+      toast('Material atualizado!');
+    } else {
+      await db.ref('materials').push(data);
+      toast('Material adicionado!');
+    }
+    closeModal('material-modal');
+  } catch(e) {
+    const msg = e?.message || e?.code || 'Erro desconhecido';
+    if (msg.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+      toast('Sem permissão de escrita. Verifique as regras do Firebase Database.', 'error');
+    } else {
+      toast('Erro ao salvar: ' + msg, 'error');
+    }
+  }
+});
+
+function renderAdminMaterials() {
+  const rows = document.getElementById('materials-rows');
+  const mats = sortByOrder(state.materials);
+  if (!mats.length) {
+    rows.innerHTML = '<div class="empty-state"><div class="icon">🔗</div><p>Nenhum material cadastrado</p></div>';
+    return;
+  }
+  rows.innerHTML = mats.map(m => `
+    <div class="data-row materials-cols">
+      <div>
+        <div style="font-weight:500;margin-bottom:2px;">${escHtml(m.title)}</div>
+        <div style="font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;">
+          ${escHtml(m.url)}
+        </div>
+      </div>
+      <div><span class="badge ${m.type}">${m.type}</span></div>
+      <div style="font-size:12.5px;">${escHtml(getSubtopicName(m.subtopicId))}</div>
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-icon btn-sm" title="Editar" onclick="editMaterial('${m.id}')">✏️</button>
+        <button class="btn btn-ghost btn-icon btn-sm" title="Excluir" onclick="confirmDelete('materials/${m.id}','${escHtml(m.title)}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function editMaterial(id) {
+  const m = state.materials[id];
+  document.getElementById('material-id').value = id;
+  document.getElementById('material-modal-title').textContent = 'Editar Material';
+  document.getElementById('material-title').value = m.title || '';
+  document.getElementById('material-url').value = m.url || '';
+  document.getElementById('material-type').value = m.type || 'pdf';
+  populateSubtopicsSelect('material-subtopic', m.subtopicId);
+  openModal('material-modal');
+}
+
+/* ==========================================================
+   EXCLUIR (com confirmação)
+   ========================================================== */
+function confirmDelete(ref, name) {
+  state.pendingDelete = ref;
+  document.getElementById('confirm-item-name').textContent = name;
+  openModal('confirm-modal');
+}
+
+document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+  if (!state.pendingDelete) return;
+  if (!db) { toast('Firebase não inicializado.', 'error'); return; }
+  try {
+    await ensureFirebaseAuth();
+    await db.ref(state.pendingDelete).remove();
+    toast('Item excluído.', 'info');
+  } catch(e) {
+    const msg = e?.message || e?.code || 'Erro desconhecido';
+    if (msg.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+      toast('Sem permissão de escrita. Verifique as regras do Firebase Database.', 'error');
+    } else {
+      toast('Erro ao excluir: ' + msg, 'error');
+    }
+  }
+  state.pendingDelete = null;
+  closeModal('confirm-modal');
+});
+
+// Fechar modais clicando fora
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+/* ==========================================================
+   MOBILE — MENU TOGGLE
+   ========================================================== */
+document.getElementById('menu-toggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+/* ==========================================================
+   INICIALIZAÇÃO
+   ========================================================== */
+function hideSplash() {
+  const splash = document.getElementById('splash');
+  splash.classList.add('hidden');
+  setTimeout(() => splash.remove(), 600);
+}
+
+if (!db) {
+  // Firebase não configurado — mostra aviso
+  document.getElementById('home').innerHTML = `
+    <div class="home-icon">⚙️</div>
+    <h1 class="home-title">Configure o Firebase</h1>
+    <p class="home-sub">
+      Abra este arquivo HTML em um editor de texto e preencha
+      o objeto <code>FIREBASE_CONFIG</code> com suas credenciais do Firebase,
+      e defina a variável <code>ADMIN_PASSWORD</code> com a senha desejada.
+    </p>`;
+  hideSplash();
+} else {
+  startListeners();
+  // Aguarda primeiro carregamento
+  db.ref('.info/connected').once('value', () => {
+    hideSplash();
+  });
+  // Timeout de segurança se offline
+  setTimeout(hideSplash, 3000);
+}
+</script>
+  <!-- Firebase -->
+
+</body>
+</html>
