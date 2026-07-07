@@ -1263,9 +1263,8 @@ function getSubtopicName(subtopicId) {
 }
 
 /* ==========================================================
-   CONVERSÃO DE URL (Google Drive)
+   CONVERSÃO DE URL (Google Drive) - Versão Melhorada
    ========================================================== */
-// Converte URL do Google Drive para embed
 function toEmbedUrl(url, type) {
   if (!url) return "";
 
@@ -1273,27 +1272,32 @@ function toEmbedUrl(url, type) {
 
   let fileId = null;
 
+  // Padrões mais completos para pegar o ID
   const patterns = [
-    /drive\.google\.com\/file\/d\/([^\/]+)/,
+    /\/file\/d\/([^\/]+)/,
+    /\/d\/([^\/]+)/,
     /open\?id=([^&]+)/,
-    /\/d\/([^\/]+)/
+    /id=([^&]+)/i
   ];
 
   for (let pattern of patterns) {
     const match = url.match(pattern);
-    if (match) {
+    if (match && match[1]) {
       fileId = match[1];
       break;
     }
   }
 
   if (fileId) {
-    // Método mais confiável atualmente
-    const embed = `https://docs.google.com/gview?url=https://drive.google.com/uc?id=${fileId}&embedded=true`;
-    console.log("URL EMBED:", embed);
-    return embed;
+    // Método mais estável em 2026
+    const embedUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+    
+    console.log("URL EMBED (Preview):", embedUrl);
+    return embedUrl;
   }
 
+  // Se não for Google Drive, retorna a URL original
+  console.log("URL EMBED (original):", url);
   return url;
 }
   /* ==========================================================
