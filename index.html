@@ -1864,9 +1864,11 @@ document.getElementById('menu-toggle').addEventListener('click', () => {
    INICIALIZAÇÃO
    ========================================================== */
 function hideSplash() {
-  const splash = document.getElementById('splash');
-  splash.classList.add('hidden');
-  setTimeout(() => splash.remove(), 600);
+    const splash = document.getElementById("splash");
+
+    if (splash) {
+        splash.classList.add("hidden");
+    }
 }
 
 if (!db) {
