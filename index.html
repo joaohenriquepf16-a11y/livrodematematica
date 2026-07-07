@@ -1265,32 +1265,26 @@ function getSubtopicName(subtopicId) {
 /* ==========================================================
    CONVERSÃO DE URL (Google Drive)
    ========================================================== */
-function toEmbedUrl(url, type) {
+function toEmbedUrl(url) {
   if (!url) return "";
 
   console.log("URL ORIGINAL:", url);
 
   let fileId = null;
 
-  // Padrão 1: https://drive.google.com/file/d/ID/...
-  const match1 = url.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
-  if (match1) fileId = match1[1];
+  const match = url.match(/drive\.google\.com\/file\/d\/([^\/]+)/) || 
+                url.match(/open\?id=([^&]+)/) ||
+                url.match(/\/d\/([^\/]+)/);
 
-  // Padrão 2: open?id=ID
-  const match2 = url.match(/open\?id=([^&]+)/);
-  if (match2) fileId = match2[1];
-
-  // Padrão 3: /d/ID/
-  const match3 = url.match(/\/d\/([^\/]+)/);
-  if (match3) fileId = match3[1];
+  if (match) fileId = match[1];
 
   if (fileId) {
-    const embed = `https://drive.google.com/file/d/${fileId}/preview`;
+    // Nova estratégia mais confiável
+    const embed = `https://docs.google.com/gview?url=https://drive.google.com/uc?id=${fileId}&embedded=true`;
     console.log("URL EMBED:", embed);
     return embed;
   }
 
-  // Fallback
   return url;
 }
   /* ==========================================================
