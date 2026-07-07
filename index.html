@@ -1264,21 +1264,26 @@ function getSubtopicName(subtopicId) {
 
 // Converte URL do Google Drive para embed
 function toEmbedUrl(url, type) {
-  if (!url) return '';
-  // Google Drive file view → preview
+  if (!url) return "";
+
+  console.log("URL ORIGINAL:", url);
+
   const gdrive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
   if (gdrive) {
-    const id = gdrive[1];
-    return `https://drive.google.com/file/d/${id}/preview`;
+    const embed = `https://drive.google.com/file/d/${gdrive[1]}/preview`;
+    console.log("URL EMBED:", embed);
+    return embed;
   }
-  // Google Drive open link
+
   const gopen = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
   if (gopen) {
-    return `https://drive.google.com/file/d/${gopen[1]}/preview`;
+    const embed = `https://drive.google.com/file/d/${gopen[1]}/preview`;
+    console.log("URL EMBED:", embed);
+    return embed;
   }
+
   return url;
 }
-
 /* ==========================================================
    FIREBASE — LISTENERS EM TEMPO REAL
    ========================================================== */
