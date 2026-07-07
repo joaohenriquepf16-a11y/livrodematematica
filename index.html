@@ -1265,13 +1265,14 @@ function getSubtopicName(subtopicId) {
 /* ==========================================================
    CONVERSÃO DE URL (Google Drive)
    ========================================================== */
+// Converte URL do Google Drive para embed
 function toEmbedUrl(url, type) {
   if (!url) return "";
 
   console.log("URL ORIGINAL:", url);
 
-  // Extrai o ID do arquivo
   let fileId = null;
+
   const patterns = [
     /drive\.google\.com\/file\/d\/([^\/]+)/,
     /open\?id=([^&]+)/,
@@ -1287,14 +1288,14 @@ function toEmbedUrl(url, type) {
   }
 
   if (fileId) {
-    // Melhor método atual (Google Docs Viewer)
-    const embedUrl = `https://docs.google.com/gview?url=https://drive.google.com/uc?id=${fileId}&embedded=true`;
-    console.log("URL EMBED:", embedUrl);
-    return embedUrl;
+    // Método mais confiável atualmente
+    const embed = `https://docs.google.com/gview?url=https://drive.google.com/uc?id=${fileId}&embedded=true`;
+    console.log("URL EMBED:", embed);
+    return embed;
   }
 
   return url;
-} 
+}
   /* ==========================================================
    FIREBASE — LISTENERS EM TEMPO REAL
    ========================================================== */
