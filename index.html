@@ -1889,5 +1889,24 @@ if (!db) {
   setTimeout(hideSplash, 3000);
 }
 </script>
+  <!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCazoHmg4nv2I3eV0iU0gAEEk3fPs_aPOs",
+    authDomain: "livrodematematica-cc6ca.firebaseapp.com",
+    databaseURL: "https://console.firebase.google.com/project/livrodematematica-cc6ca/database/livrodematematica-cc6ca-default-rtdb/data/~2F?hl=pt-br",
+    projectId: "livrodematematica-cc6ca",
+    storageBucket: "livrodematematica-cc6ca.firebasestorage.app",
+    messagingSenderId: "724930517163",
+    appId: "1:724930517163:web:cc53d9db0cff75ad88bfee",
+    measurementId: "G-ELBZ6CWG2E"
+  };
+
+  const app = initializeApp(firebaseConfig);
+
+  console.log("Firebase conectado!");
+</script>
 </body>
 </html>
